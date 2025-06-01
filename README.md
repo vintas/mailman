@@ -22,7 +22,7 @@ Follow these steps to set up and run the Mailman script.
 
 * Python 3.8+
 * A Google Cloud Project with the Gmail API enabled.
-* OAuth 2.0 Client ID credentials ( `credentials.json` ) downloaded from your Google Cloud Console.
+* OAuth 2.0 Client ID credentials ( `client_secret.json` ) downloaded from your Google Cloud Console.
 
 ### Installation
 
@@ -50,7 +50,7 @@ Follow these steps to set up and run the Mailman script.
     * Go to "APIs & Services" > "Credentials".
     * Click "Create Credentials" > "OAuth client ID."
     * Choose "Desktop app" for the application type.
-    * Download the `credentials.json` file and place it in the root directory of your `mailman` project.
+    * Download the `client_secret.json` file and place it in the `credentials` directory of your `mailman` project.
 
 5.  **Database Setup:**
     This project uses SQLite3 by default for simplicity. No additional setup is required for SQLite3; the database file will be created automatically.
