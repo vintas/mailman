@@ -52,3 +52,6 @@ Follow these steps to set up and run the Mailman script.
     * Choose "Desktop app" for the application type.
     * Download the `credentials.json` file and place it in the root directory of your `mailman` project.
 
+5.  **Database Setup:**
+    This project uses SQLite3 by default for simplicity. No additional setup is required for SQLite3; the database file will be created automatically.
+    If you would like to use PostgreSQL or MySQL, you'll need to configure the database connection string appropriately in your script and ensure the respective database server is running. Things should ideally work seamlessly though I provide no guarantees yet.
