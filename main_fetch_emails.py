@@ -1,5 +1,5 @@
 import time
-from config import DATABASE_NAME # For informational print
+from config import DATABASE_NAME
 from mailman_components.gmail_auth import get_gmail_service
 from mailman_components.gmail_client import list_message_ids, get_message_detail
 from mailman_components.email_parser import parse_email_data

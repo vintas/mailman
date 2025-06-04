@@ -57,6 +57,92 @@ def get_message_detail(service, msg_id, user_id='me'):
         print(f'An unexpected error occurred while getting message {msg_id}: {e}')
         return None
 
+def get_label_id_by_name(service, label_name, user_id='me'):
+    """
+    Fetches the ID of a label given its name. Caches results.
+    Standard labels like INBOX, SPAM, TRASH, UNREAD, IMPORTANT, DRAFT, SENT can often be used directly
+    as IDs in modify requests or have well-known names.
+    This is more for custom user-created labels.
+    """
+    if not label_name:
+        return None
+
+    # Check cache first
+    if label_name in _label_cache:
+        return _label_cache[label_name]
+
+    # Standard system labels (case-insensitive for matching, but API uses uppercase)
+    standard_labels = {
+        "inbox": "INBOX",
+        "spam": "SPAM",
+        "trash": "TRASH",
+        "unread": "UNREAD",
+        "important": "IMPORTANT",
+        "draft": "DRAFT", # Actually DRAFTS
+        "sent": "SENT",
+        "starred": "STARRED",
+        "category_personal": "CATEGORY_PERSONAL",
+        "category_social": "CATEGORY_SOCIAL",
+        "category_promotions": "CATEGORY_PROMOTIONS",
+        "category_updates": "CATEGORY_UPDATES",
+        "category_forums": "CATEGORY_FORUMS",
+    }
+    if label_name.lower() in standard_labels:
+        _label_cache[label_name] = standard_labels[label_name.lower()]
+        return standard_labels[label_name.lower()]
+
+    try:
+        results = service.users().labels().list(userId=user_id).execute()
+        labels = results.get('labels', [])
+        for label in labels:
+            # Cache all fetched labels for future use
+            _label_cache[label['name']] = label['id']
+            if label['name'].lower() == label_name.lower():
+                return label['id']
+        print(f"Label '{label_name}' not found among user labels.")
+        _label_cache[label_name] = None # Cache miss
+        return None
+    except HttpError as error:
+        print(f"An API error occurred while fetching labels: {error}")
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching labels: {e}")
+        return None
+
+
+def modify_message_labels(service, msg_id, add_label_ids=None, remove_label_ids=None, user_id='me'):
+    """
+    Modifies the labels on a message.
+    Args:
+        service: Authorized Gmail API service instance.
+        msg_id: The ID of the message to modify.
+        add_label_ids: List of Label IDs to add.
+        remove_label_ids: List of Label IDs to remove.
+        user_id: User's email address. 'me' for authenticated user.
+    Returns:
+        The modified message resource or None if an error occurs.
+    """
+    if not add_label_ids and not remove_label_ids:
+        print("No labels to add or remove.")
+        return None
+
+    body = {}
+    if add_label_ids:
+        body['addLabelIds'] = add_label_ids
+    if remove_label_ids:
+        body['removeLabelIds'] = remove_label_ids
+    
+    try:
+        message = service.users().messages().modify(userId=user_id, id=msg_id, body=body).execute()
+        print(f"Modified labels for message {msg_id}. Added: {add_label_ids}, Removed: {remove_label_ids}")
+        return message
+    except HttpError as error:
+        print(f'An API error occurred while modifying message {msg_id}: {error}')
+        return None
+    except Exception as e:
+        print(f'An unexpected error occurred while modifying message {msg_id}: {e}')
+        return None
+
 if __name__ == '__main__':
     # This block is for testing this module directly.
     print("Testing gmail_client.py...")
@@ -92,6 +178,33 @@ if __name__ == '__main__':
                 else:
                     print(f"Could not fetch details for message {test_msg_id}.")
 
+                # 3. Test get_label_id_by_name
+                print("\n--- Testing get_label_id_by_name ---")
+                inbox_label_id = get_label_id_by_name(gmail_service, "INBOX")
+                print(f"ID for 'INBOX': {inbox_label_id}")
+                
+                custom_label_name = "MyTestLabelMailman" # Replace if you have a specific custom label
+                custom_label_id = get_label_id_by_name(gmail_service, custom_label_name)
+                if custom_label_id:
+                    print(f"ID for '{custom_label_name}': {custom_label_id}")
+                else:
+                    print(f"Custom label '{custom_label_name}' not found or no ID retrieved.")
+                
+                # 4. Test modify_message_labels (Example: add 'IMPORTANT', remove 'UNREAD' if present)
+                # Be careful with this test as it modifies your actual email.
+                # print("\n--- Testing modify_message_labels (Conceptual) ---")
+                # if message_detail and 'UNREAD' in message_detail.get('labelIds', []):
+                #     print(f"Attempting to mark message {test_msg_id} as read and important.")
+                #     modified_msg = modify_message_labels(
+                #         gmail_service,
+                #         msg_id=test_msg_id,
+                #         add_label_ids=['IMPORTANT'],
+                #         remove_label_ids=['UNREAD']
+                #     )
+                #     if modified_msg:
+                #         print(f"Message {test_msg_id} modified. New labels: {modified_msg.get('labelIds')}")
+                # else:
+                # print(f"Skipping modify test for message {test_msg_id} (not unread or no details).")
             else:
                 print("No messages found in inbox to test with.")
         else:

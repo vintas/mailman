@@ -1,0 +1,84 @@
+[
+  {
+    "description": "Move newsletters from 'daily-reads.com' to 'Newsletters' label and mark as read",
+    "conditions_predicate": "all",
+    "conditions": [
+      {
+        "field": "from_address",
+        "predicate": "contains",
+        "value": "daily-reads.com"
+      }
+    ],
+    "actions": [
+      {
+        "type": "mark_as_read"
+      },
+      {
+        "type": "move_message",
+        "mailbox": "Newsletters" 
+      }
+    ]
+  },
+  {
+    "description": "Mark urgent project emails from 'boss@example.com' or 'pm@example.com' as important (add 'IMPORTANT' label)",
+    "conditions_predicate": "any",
+    "conditions": [
+      {
+        "field": "from_address",
+        "predicate": "equals",
+        "value": "boss@example.com"
+      },
+      {
+        "field": "from_address",
+        "predicate": "equals",
+        "value": "pm@example.com"
+      }
+    ],
+    "actions": [
+      {
+        "type": "add_label", "label_name": "IMPORTANT" 
+      },
+      {
+        "type": "mark_as_unread" 
+      }
+    ]
+  },
+  {
+    "description": "Archive emails older than 6 months with 'update' in subject",
+    "conditions_predicate": "all",
+    "conditions": [
+      {
+        "field": "subject",
+        "predicate": "contains",
+        "value": "update"
+      },
+      {
+        "field": "received_datetime",
+        "predicate": "greater_than_months",
+        "value": "6"
+      }
+    ],
+    "actions": [
+      {
+        "type": "mark_as_read"
+      },
+      {
+        "type": "move_message",
+        "mailbox": "ARCHIVE" 
+      }
+    ]
+  },
+  {
+    "description": "Test Rule matching screenshot",
+    "conditions_predicate": "all",
+    "conditions": [
+      {"field": "from_address", "predicate": "contains", "value": "tenmiles.com"},
+      {"field": "subject", "predicate": "contains", "value": "Interview"},
+      {"field": "received_datetime", "predicate": "less_than_days", "value": "2"}
+    ],
+    "actions": [
+      {"type": "move_message", "mailbox": "Inbox"},
+      {"type": "mark_as_read"}
+    ]
+  }
+]

@@ -14,3 +14,14 @@ API_SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
 # Database
 DATABASE_NAME = 'emails.db'
 DATABASE_URI = f'sqlite:///{os.path.join(BASE_DIR, DATABASE_NAME)}'
+
+# Rules file
+RULES_FILE = os.path.join(BASE_DIR, 'rules.json')
+
+# Ensure the credentials directory exists
+os.makedirs(os.path.dirname(CLIENT_SECRET_FILE), exist_ok=True)
+
+# Ensure the rules file exists
+if not os.path.exists(RULES_FILE):
+    with open(RULES_FILE, 'w') as f:
+        f.write("[]")  # Create an empty JSON array
