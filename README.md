@@ -86,7 +86,7 @@ Follow these steps to set up and run the Mailman script.
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/vintas/mailman.git](https://github.com/vintas/mailman.git)
+    git clone https://github.com/vintas/mailman.git
     cd mailman
     ```
 
