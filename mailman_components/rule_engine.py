@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta # For month calculations
 import re # For "contains" and "equals" on potentially complex strings
+from email.utils import parseaddr
 
 from config import RULES_FILE
 
@@ -160,43 +161,57 @@ def evaluate_email(email_db_object, rule):
             condition_results.append(False)
             continue
             
-        email_field_value = getattr(email_db_object, db_field_name)
+        email_field_value_original = getattr(email_db_object, db_field_name)
         condition_met = False
+        value_to_check_against_rule = email_field_value_original # Default
 
         try:
-            # Fields that are single strings or need direct string comparison
-            if db_field_name in ["from_address", "subject", "body_plain"]:
-                condition_met = _check_string_condition(email_field_value, predicate, rule_value)
+            if db_field_name == "from_address":
+                if email_field_value_original and isinstance(email_field_value_original, str):
+                    name, addr = parseaddr(email_field_value_original)
+                    value_to_check_against_rule = addr if addr else email_field_value_original # Use extracted email, or original if parse fails badly
+                # If not a string or empty, it will be handled by _check_string_condition as an empty string
+                condition_met = _check_string_condition(value_to_check_against_rule, predicate, rule_value)
+
+            # Fields that are single strings or need direct string comparison (excluding from_address now)
+            elif db_field_name in ["subject", "body_plain"]:
+                condition_met = _check_string_condition(email_field_value_original, predicate, rule_value)
             
             # Fields that are JSON strings representing lists of addresses
             elif db_field_name in ["to_addresses", "cc_addresses", "bcc_addresses"]:
-                if not isinstance(email_field_value, str): # Should be a JSON string from DB
-                    print(f"Warning: Field '{db_field_name}' is not a string as expected. Value: {email_field_value}. Condition failed.")
+                if not isinstance(email_field_value_original, str): # Should be a JSON string from DB
+                    print(f"Warning: Field '{db_field_name}' is not a string as expected. Value: {email_field_value_original}. Condition failed.")
                     condition_met = False
                 else:
                     try:
-                        address_list = json.loads(email_field_value)
+                        address_list = json.loads(email_field_value_original)
                         if not isinstance(address_list, list):
                             print(f"Warning: Parsed JSON for '{db_field_name}' is not a list. Value: {address_list}. Condition failed.")
                             condition_met = False
                         else:
-                            # For "equals" or "contains", true if ANY address in the list matches.
+                            parsed_address_list_emails_only = []
+                            for item in address_list:
+                                if isinstance(item, str):
+                                    name, addr = parseaddr(item)
+                                    parsed_address_list_emails_only.append(addr if addr else item)
+                                else:
+                                    parsed_address_list_emails_only.append(str(item)) # fallback
+
                             if predicate in ["equals", "contains"]:
-                                condition_met = any(_check_string_condition(addr, predicate, rule_value) for addr in address_list)
-                            # For "does_not_equal" or "does_not_contain", true if ALL addresses in the list match (i.e., none violate).
+                                condition_met = any(_check_string_condition(addr_email_part, predicate, rule_value) for addr_email_part in parsed_address_list_emails_only)
                             elif predicate in ["does_not_equal", "does_not_contain"]:
-                                condition_met = all(_check_string_condition(addr, predicate, rule_value) for addr in address_list)
+                                condition_met = all(_check_string_condition(addr_email_part, predicate, rule_value) for addr_email_part in parsed_address_list_emails_only)
                             else:
                                 raise RuleConditionError(f"Unsupported predicate '{predicate}' for address list field '{db_field_name}'.")
                     except json.JSONDecodeError:
-                        print(f"Warning: Could not parse JSON for address list field '{db_field_name}'. Value: {email_field_value}. Condition failed.")
+                        print(f"Warning: Could not parse JSON for address list field '{db_field_name}'. Value: {email_field_value_original}. Condition failed.")
                         condition_met = False
             
             # Date fields
             elif db_field_name == "received_datetime":
-                condition_met = _check_date_condition(email_field_value, predicate, rule_value)
+                condition_met = _check_date_condition(email_field_value_original, predicate, rule_value)
             else:
-                print(f"Warning: Unhandled field type for condition processing: {db_field_name}. Condition failed.")
+                print(f"Warning: Unhandled field type for condition processing: {db_field_name}. Value: '{email_field_value_original}'. Condition failed.")
                 condition_met = False
             
             condition_results.append(condition_met)
@@ -246,11 +261,19 @@ if __name__ == '__main__':
     email1_date = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     email1 = DummyEmail(
         message_id="test001",
-        from_address="hr@tenmiles.com",
+        from_address="HR Team <hr@tenmiles.com>",
         subject="Your Interview Schedule",
         body_plain="Details about your upcoming interview.",
         received_datetime_str=email1_date,
-        to_addresses_json_str=json.dumps(["candidate@example.com", "manager@tenmiles.com"])
+        to_addresses_json_str=json.dumps(["Candidate <candidate@example.com>", "manager@tenmiles.com"])
+    )
+
+    email_from_only_addr = DummyEmail(
+        message_id="test_from_only",
+        from_address="my_name@gmail.com", # No name part
+        subject="Simple From",
+        body_plain="Test",
+        received_datetime_str=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     )
 
     email2_date = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
@@ -319,6 +342,30 @@ if __name__ == '__main__':
                     {"field": "to_addresses", "predicate": "does_not_equal", "value": "beta@example.com"} # beta IS in email4's TO list
                 ],
                 "actions": [{"type": "mark_as_read"}]
+            },
+            {
+                "description": "FROM equals specific email (with name in DB)",
+                "conditions_predicate": "all",
+                "conditions": [{"field": "from_address", "predicate": "equals", "value": "hr@tenmiles.com"}],
+                "actions": []
+            },
+            {
+                "description": "FROM contains domain (with name in DB)",
+                "conditions_predicate": "all",
+                "conditions": [{"field": "from_address", "predicate": "contains", "value": "tenmiles.com"}],
+                "actions": []
+            },
+            {
+                "description": "FROM equals specific email (no name in DB)",
+                "conditions_predicate": "all",
+                "conditions": [{"field": "from_address", "predicate": "equals", "value": "my_name@gmail.com"}],
+                "actions": []
+            },
+            {
+                "description": "FROM (alias) equals specific email (with name in DB)",
+                "conditions_predicate": "all",
+                "conditions": [{"field": "From", "predicate": "equals", "value": "hr@tenmiles.com"}],
+                "actions": []
             }
         ]
         # Append existing rules if any
@@ -366,6 +413,57 @@ if __name__ == '__main__':
             matches = evaluate_email(email4, rule_to_not_equals_beta)
             print(f"  Matches (beta@example.com IS in the list, so NOT all 'do not equal' it - should be False): {matches}")
             assert matches is False
+
+    effective_rules = test_rules
+
+    print(f"\n--- Evaluating Email 1 (From: 'HR Team <hr@tenmiles.com>') ---")
+    rule_from_equals_hr = next((r for r in effective_rules if r['description'] == "FROM equals specific email (with name in DB)"), None)
+    if rule_from_equals_hr:
+        matches = evaluate_email(email1, rule_from_equals_hr)
+        print(f"Rule: {rule_from_equals_hr['description']} -> Matches: {matches} (Expected: True)")
+        assert matches is True
+
+    rule_from_contains_domain = next((r for r in effective_rules if r['description'] == "FROM contains domain (with name in DB)"), None)
+    if rule_from_contains_domain:
+        matches = evaluate_email(email1, rule_from_contains_domain)
+        print(f"Rule: {rule_from_contains_domain['description']} -> Matches: {matches} (Expected: True)")
+        assert matches is True
+    
+    rule_from_alias_equals_hr = next((r for r in effective_rules if r['description'] == "FROM (alias) equals specific email (with name in DB)"), None)
+    if rule_from_alias_equals_hr:
+        matches = evaluate_email(email1, rule_from_alias_equals_hr)
+        print(f"Rule: {rule_from_alias_equals_hr['description']} -> Matches: {matches} (Expected: True)")
+        assert matches is True
+
+
+    print(f"\n--- Evaluating Email (From: 'my_name@gmail.com') ---")
+    rule_from_equals_myname = next((r for r in effective_rules if r['description'] == "FROM equals specific email (no name in DB)"), None)
+    if rule_from_equals_myname:
+        matches = evaluate_email(email_from_only_addr, rule_from_equals_myname)
+        print(f"Rule: {rule_from_equals_myname['description']} -> Matches: {matches} (Expected: True)")
+        assert matches is True
+
+    # Also test To/Cc/Bcc address parsing
+    print(f"\n--- Evaluating Email 1 (To: ['Candidate <candidate@example.com>', 'manager@tenmiles.com']) for TO field ---")
+    to_field_test_rule_equals = {
+        "description": "TO equals specific email (with name in DB list item)",
+        "conditions_predicate": "all",
+        "conditions": [{"field": "To", "predicate": "equals", "value": "candidate@example.com"}],
+        "actions": []
+    }
+    matches_to_equals = evaluate_email(email1, to_field_test_rule_equals)
+    print(f"Rule: {to_field_test_rule_equals['description']} -> Matches: {matches_to_equals} (Expected: True)")
+    assert matches_to_equals is True
+    
+    to_field_test_rule_contains_domain = {
+        "description": "TO contains domain (from name in DB list item)",
+        "conditions_predicate": "all",
+        "conditions": [{"field": "To", "predicate": "contains", "value": "tenmiles.com"}], # manager@tenmiles.com
+        "actions": []
+    }
+    matches_to_contains = evaluate_email(email1, to_field_test_rule_contains_domain)
+    print(f"Rule: {to_field_test_rule_contains_domain['description']} -> Matches: {matches_to_contains} (Expected: True)")
+    assert matches_to_contains is True
 
 
     print("Rule engine tests completed.")
