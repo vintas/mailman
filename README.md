@@ -39,6 +39,38 @@ Mailman is a standalone Python script designed to help you manage your Gmail inb
 
   * `main_process_emails.py`: Processes emails from the database based on rules and applies actions via Gmail API.
 
+## Project Structure
+
+```
+mailman/
+│
+├── main_fetch_emails.py        # Main script to run email fetching and storing
+├── main_process_emails.py      # Main script to run email processing based on rules
+│
+├── mailman_components/         # Core logic modules
+│   ├── __init__.py
+│   ├── gmail_auth.py           # Gmail API authentication
+│   ├── gmail_client.py         # Gmail API interaction (fetch, modify)
+│   ├── database_handler.py     # Database schema and operations (SQLite)
+│   ├── rule_engine.py          # Rule parsing and evaluation logic
+│   └── email_parser.py         # Parsing raw email data from Gmail API
+│
+├── rules.json                  # User-configurable rules for email processing
+├── config.py                   # Configuration constants (paths, API scopes)
+├── requirements.txt            # Python package dependencies
+├── README.md                   # This file
+│
+├── credentials/                # Stores OAuth credentials (GITIGNORED - DO NOT COMMIT token.json)
+│   └── client_secret.json      # Google API client secret file (user-provided)
+│   └── token.json              # Generated token after successful OAuth (GITIGNORED)
+│
+├── emails.db                   # SQLite database file (GITIGNORED - will be created on run)
+│
+└── tests/                      # Optional: Unit and/or integration tests
+    ├── __init__.py
+    └── ...
+
+```
 
 ## Getting Started
 
