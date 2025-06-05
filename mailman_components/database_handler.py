@@ -23,8 +23,8 @@ class Email(Base):
     received_datetime = Column(DateTime, nullable=False, index=True)
     snippet = Column(Text, nullable=True)
     labels = Column(Text) # Store as JSON string
-    is_read = Column(Integer, default=0)  # 0 for unread, 1 for read
-    is_starred = Column(Integer, default=0)  # 0 for not starred, 1 for starred
+    # is_read = Column(Integer, default=0)  # 0 for unread, 1 for read
+    # is_starred = Column(Integer, default=0)  # 0 for not starred, 1 for starred
     raw_headers = Column(Text) # Storing as JSON string of all headers
 
     __table_args__ = (
