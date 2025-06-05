@@ -116,7 +116,7 @@ This file, located in the project root, defines the rules for processing emails.
 
 **Rule Structure:**
 
-```json
+```jsonc
 {
   "description": "Descriptive name for the rule",
   "conditions_predicate": "all", // or "any"
