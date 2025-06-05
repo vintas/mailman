@@ -5,6 +5,10 @@ Manage you gmail mails efficiently.
 
 Mailman is a standalone Python script designed to help you manage your Gmail inbox more efficiently through customizable, rule-based automation. It integrates directly with the Gmail API to fetch emails, apply user-defined rules, and perform actions like marking emails as read/unread or moving them between mailboxes/labels.
 
+## Video Presentation & Demonstration
+
+[Mailman Video](https://youtu.be/xYOzu6YHrf4)
+
 ## Key features:
 
 * **Gmail API Integration:** Securely authenticates with Gmail using OAuth 2.0.
