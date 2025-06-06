@@ -7,7 +7,7 @@ Mailman is a standalone Python script designed to help you manage your Gmail inb
 
 ## Video Presentation & Demonstration
 
-[Mailman Video](https://youtu.be/xYOzu6YHrf4)
+[Mailman Video](https://youtu.be/0BMe27vJ_AY)
 
 ## Key features:
 
